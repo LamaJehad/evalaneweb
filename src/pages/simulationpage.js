@@ -289,15 +289,15 @@ function drawSA(ctx) { ctx.beginPath(); ctx.moveTo(-9, 0); ctx.lineTo(3, 0); ctx
 function drawLA(ctx) { ctx.beginPath(); ctx.moveTo(-9, 0); ctx.lineTo(0, 0); ctx.lineTo(0, -9); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, -14); ctx.lineTo(-4, -9); ctx.lineTo(4, -9); ctx.closePath(); ctx.fill(); }
 function drawRA(ctx) { ctx.beginPath(); ctx.moveTo(-9, 0); ctx.lineTo(0, 0); ctx.lineTo(0, 9); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, 14); ctx.lineTo(-4, 9); ctx.lineTo(4, 9); ctx.closePath(); ctx.fill(); }
 
-function drawDirLabels(ctx){
+function drawDirLabels(ctx) {
   ctx.font = "bold 18px monospace";
   ctx.textAlign = "center";
   ctx.fillStyle = "rgba(255,255,255,0.45)";
 
-  ctx.fillText("N", NLX[1], IY1-100);
-  ctx.fillText("S", SLX[1], IY2+100);
-  ctx.fillText("E", IX2+100, ELY[1]+5);
-  ctx.fillText("W", IX1-100, WLY[1]+5);
+  ctx.fillText("N", NLX[1], IY1 - 100);
+  ctx.fillText("S", SLX[1], IY2 + 100);
+  ctx.fillText("E", IX2 + 100, ELY[1] + 5);
+  ctx.fillText("W", IX1 - 100, WLY[1] + 5);
 
   ctx.textAlign = "left";
 }
@@ -474,7 +474,7 @@ function render(ctx, sim) {
   ctx.fillStyle = "#2c6a3c"; ctx.fillRect(0, 0, W, H);
   drawEnvironment(ctx);
   drawRoads(ctx); drawHeat(ctx, sim.cong, sim.gf); drawBoxDetail(ctx); drawMarkings(ctx);
-  drawStopLines(ctx); drawLights(ctx, sim); drawArrows(ctx);drawDirLabels(ctx);
+  drawStopLines(ctx); drawLights(ctx, sim); drawArrows(ctx); drawDirLabels(ctx);
   // Draw regular cars first, then ambulance on top
   for (const c of sim.cars) if (!c.done && !c.isAmbulance) drawCar(ctx, c);
   for (const c of sim.cars) if (!c.done && c.isAmbulance) drawCar(ctx, c);
@@ -715,8 +715,8 @@ export default function EvalaneSimPage() {
     activeLane: "N", greenTimer: 8000, greenDuration: 8, transitioning: false,
     laneCounts: { N: 0, S: 0, E: 0, W: 0 }, cong: { N: 0, S: 0, E: 0, W: 0 }, gf: { N: 0, S: 0, E: 0, W: 0 }, ambulance: null
   });
-  const [totalDecisions, setTotalDecisions] = useState(0);
-  const [correctDecisions, setCorrectDecisions] = useState(0);
+  const [, setTotalDecisions] = useState(0);
+  const [, setCorrectDecisions] = useState(0);
   const [sessionSecs, setSessionSecs] = useState(SESSION_LIMIT);
   const [started, setStarted] = useState(false);
   const [finished, setFinished] = useState(false);
@@ -921,9 +921,9 @@ export default function EvalaneSimPage() {
             setFinished(true);
             setTotalDecisions(finalTotal => {
               setCorrectDecisions(finalCorrect => {
-                const finalScore = finalTotal === 0 ? 0
-                  : Math.round((finalCorrect / finalTotal) * 100);
+                const finalScore = score;
                 saveSession(finalScore, finalScore, finalCorrect, finalTotal);
+                setPreviousScore(finalScore);
                 return finalCorrect;
               });
               return finalTotal;
@@ -936,7 +936,7 @@ export default function EvalaneSimPage() {
       }
     }, 1000);
     return () => clearInterval(id);
-  }, [saveSession]);
+  }, [saveSession, score]);
   // Sync custom times → sim
   useEffect(() => { if (simRef.current) simRef.current.customDurations = { ...customTimes }; }, [customTimes]);
 
