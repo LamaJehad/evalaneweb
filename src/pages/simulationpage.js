@@ -20,7 +20,7 @@ const WEY = [CY + L / 2, CY + 3 * L / 2, CY + 5 * L / 2];
 
 // ─── SPEED
 const SPD = 0.9, CW = 10, CH = 16, GAP = 26;
-const SESSION_LIMIT = 180;
+const SESSION_LIMIT = 240;
 const CLRS = ["#e74c3c", "#3498db", "#f1c40f", "#2ecc71", "#9b59b6", "#e67e22", "#1abc9c", "#e91e63", "#00b4d8", "#ff6b35"];
 const NAMES = { N: "North", S: "South", E: "East", W: "West" };
 const PEAK_HRS = new Set([7, 8, 9, 17, 18, 19]);
@@ -289,6 +289,19 @@ function drawSA(ctx) { ctx.beginPath(); ctx.moveTo(-9, 0); ctx.lineTo(3, 0); ctx
 function drawLA(ctx) { ctx.beginPath(); ctx.moveTo(-9, 0); ctx.lineTo(0, 0); ctx.lineTo(0, -9); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, -14); ctx.lineTo(-4, -9); ctx.lineTo(4, -9); ctx.closePath(); ctx.fill(); }
 function drawRA(ctx) { ctx.beginPath(); ctx.moveTo(-9, 0); ctx.lineTo(0, 0); ctx.lineTo(0, 9); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, 14); ctx.lineTo(-4, 9); ctx.lineTo(4, 9); ctx.closePath(); ctx.fill(); }
 
+function drawDirLabels(ctx){
+  ctx.font = "bold 18px monospace";
+  ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(255,255,255,0.45)";
+
+  ctx.fillText("N", NLX[1], IY1-100);
+  ctx.fillText("S", SLX[1], IY2+100);
+  ctx.fillText("E", IX2+100, ELY[1]+5);
+  ctx.fillText("W", IX1-100, WLY[1]+5);
+
+  ctx.textAlign = "left";
+}
+
 function drawArrows(ctx) {
   ctx.fillStyle = "rgba(255,255,255,0.55)"; ctx.strokeStyle = "rgba(255,255,255,0.55)";
   ctx.lineWidth = 2; ctx.setLineDash([]);
@@ -461,7 +474,7 @@ function render(ctx, sim) {
   ctx.fillStyle = "#2c6a3c"; ctx.fillRect(0, 0, W, H);
   drawEnvironment(ctx);
   drawRoads(ctx); drawHeat(ctx, sim.cong, sim.gf); drawBoxDetail(ctx); drawMarkings(ctx);
-  drawStopLines(ctx); drawLights(ctx, sim); drawArrows(ctx);
+  drawStopLines(ctx); drawLights(ctx, sim); drawArrows(ctx);drawDirLabels(ctx);
   // Draw regular cars first, then ambulance on top
   for (const c of sim.cars) if (!c.done && !c.isAmbulance) drawCar(ctx, c);
   for (const c of sim.cars) if (!c.done && c.isAmbulance) drawCar(ctx, c);
@@ -567,7 +580,7 @@ function LaneCard({ dir, ui, ai, onOpen, customTime, editing, onEditStart, onEdi
   const congPct = Math.min(99, Math.round(count / 15 * 100));
   const bc = barColor(congPct);
   const isAIPick = ai.lane === dir;
-  const dispDur = customTime || ai.dur;
+  const dispDur = customTime ?? 30;
   const borderAccent = isActive ? C.green : isYellow ? C.yellow : hasAmb ? C.amber : C.border;
   return (
     <div style={{ background: C.card, border: `1px solid ${isActive ? "#00e67620" : hasAmb ? "#ffaa0020" : C.border}`, borderLeft: `3px solid ${borderAccent}`, borderRadius: 6, padding: "7px 11px", marginBottom: 4 }}>
@@ -622,9 +635,11 @@ function LaneCard({ dir, ui, ai, onOpen, customTime, editing, onEditStart, onEdi
       {editing && (
         <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 9, background: "#0a0c18", borderRadius: 4, padding: "5px 7px", border: `1px solid ${C.border}` }}>
           <span style={{ color: "#fff", fontSize: 9, letterSpacing: "0.08em", flex: 1 }}>GREEN TIME</span>
-          <button onClick={() => onSetTime(Math.max(15, dispDur - 5))} style={smallBtnStyle}>−5</button>
-          <span style={{ color: C.yellow, fontFamily: "monospace", fontSize: 13, minWidth: 36, textAlign: "center" }}>{dispDur}s</span>
-          <button onClick={() => onSetTime(Math.min(75, dispDur + 5))} style={smallBtnStyle}>+5</button>
+          <button onClick={() => onSetTime(Math.max(15, dispDur - 1))} style={smallBtnStyle}>−</button>
+          <span style={{ color: C.yellow, fontFamily: "monospace", fontSize: 13, minWidth: 36, textAlign: "center" }}>
+            {dispDur}s
+          </span>
+          <button onClick={() => onSetTime(Math.min(75, dispDur + 1))} style={smallBtnStyle}>+</button>
         </div>
       )}
       <div style={{ display: "flex", gap: 5 }}>
@@ -852,7 +867,7 @@ export default function EvalaneSimPage() {
         avgCongestion: ai.avg,
         createdAt: new Date(),
       });
-
+      setPreviousScore(finalScore);
 
       const userRef = doc(db, "users", user.uid);
       const userSnap = await getDoc(userRef);
