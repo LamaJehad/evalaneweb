@@ -1,0 +1,262 @@
+.intersection-container {
+  position: relative;
+  width: 100%;
+  height: 650px;
+  background: #09111f;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.asphalt-crossing-box {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.center-box {
+  position: absolute;
+  width: 180px;
+  height: 180px;
+  top: 170px;
+  left: 170px;
+  background: #111827;
+}
+
+.road-strip {
+  position: absolute;
+  background: #060c18;
+}
+
+.road-N,
+.road-S {
+  width: 180px;
+  height: 170px;
+  left: 170px;
+}
+
+.road-N {
+  top: 0;
+}
+
+.road-S {
+  bottom: 0;
+}
+
+.road-E,
+.road-W {
+  width: 170px;
+  height: 180px;
+  top: 170px;
+}
+
+.road-E {
+  right: 0;
+}
+
+.road-W {
+  left: 0;
+}
+
+.lane-divider {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.road-N .lane-divider,
+.road-S .lane-divider {
+  width: 1px;
+  height: 100%;
+}
+
+.road-E .lane-divider,
+.road-W .lane-divider {
+  height: 1px;
+  width: 100%;
+}
+
+.road-N .divider-1 { left: 36px; }
+.road-N .divider-2 { left: 72px; }
+.road-N .center-median { left: 108px; width: 2px; background: #facc15; }
+.road-N .divider-4 { left: 144px; }
+
+.road-S .divider-1 { right: 36px; }
+.road-S .divider-2 { right: 72px; }
+.road-S .center-median { right: 108px; width: 2px; background: #facc15; }
+.road-S .divider-4 { right: 144px; }
+
+.road-W .divider-1 { top: 36px; }
+.road-W .divider-2 { top: 72px; }
+.road-W .center-median { top: 108px; height: 2px; background: #facc15; }
+.road-W .divider-4 { top: 144px; }
+
+.road-E .divider-1 { bottom: 36px; }
+.road-E .divider-2 { bottom: 72px; }
+.road-E .center-median { bottom: 108px; height: 2px; background: #facc15; }
+.road-E .divider-4 { bottom: 144px; }
+
+.traffic-light-post {
+  position: absolute;
+  background: #111827;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  gap: 4px;
+  z-index: 20;
+}
+
+.road-N .traffic-light-post {
+  bottom: 10px;
+  left: 10px;
+  flex-direction: column;
+}
+
+.road-S .traffic-light-post {
+  top: 10px;
+  right: 10px;
+  flex-direction: column;
+}
+
+.road-W .traffic-light-post {
+  top: 10px;
+  right: 10px;
+}
+
+.road-E .traffic-light-post {
+  bottom: 10px;
+  left: 10px;
+}
+
+.light-bulb {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #1f2937;
+}
+
+.light-bulb.red.active {
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+}
+
+.light-bulb.green.active {
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+
+.vehicle {
+  position: absolute;
+  width: 14px;
+  height: 22px;
+  border-radius: 4px;
+}
+
+.car-N.lane-0 {
+  left: 12px;
+  background: #ef4444;
+  animation: north 5s linear infinite;
+}
+
+.car-N.lane-1 {
+  left: 48px;
+  background: #10b981;
+  animation: north 4s linear infinite;
+}
+
+.car-N.lane-2 {
+  left: 84px;
+  background: #3b82f6;
+  animation: north 6s linear infinite;
+}
+
+.car-S.lane-0 {
+  right: 12px;
+  background: #f59e0b;
+  animation: south 5s linear infinite;
+}
+
+.car-S.lane-1 {
+  right: 48px;
+  background: #ec4899;
+  animation: south 4s linear infinite;
+}
+
+.car-S.lane-2 {
+  right: 84px;
+  background: #06b6d4;
+  animation: south 6s linear infinite;
+}
+
+.car-W.lane-0 {
+  top: 12px;
+  width: 22px;
+  height: 14px;
+  background: #8b5cf6;
+  animation: west 5s linear infinite;
+}
+
+.car-W.lane-1 {
+  top: 48px;
+  width: 22px;
+  height: 14px;
+  background: #22c55e;
+  animation: west 4s linear infinite;
+}
+
+.car-W.lane-2 {
+  top: 84px;
+  width: 22px;
+  height: 14px;
+  background: #eab308;
+  animation: west 6s linear infinite;
+}
+
+.car-E.lane-0 {
+  bottom: 12px;
+  width: 22px;
+  height: 14px;
+  background: #f97316;
+  animation: east 5s linear infinite;
+}
+
+.car-E.lane-1 {
+  bottom: 48px;
+  width: 22px;
+  height: 14px;
+  background: #64748b;
+  animation: east 4s linear infinite;
+}
+
+.car-E.lane-2 {
+  bottom: 84px;
+  width: 22px;
+  height: 14px;
+  background: #84cc16;
+  animation: east 6s linear infinite;
+}
+
+.signal-red {
+  animation-play-state: paused !important;
+}
+
+@keyframes north {
+  from { bottom: -30px; }
+  to { bottom: 540px; }
+}
+
+@keyframes south {
+  from { top: -30px; }
+  to { top: 540px; }
+}
+
+@keyframes west {
+  from { left: -30px; }
+  to { left: 540px; }
+}
+
+@keyframes east {
+  from { right: -30px; }
+  to { right: 540px; }
+}
