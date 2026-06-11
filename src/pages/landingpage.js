@@ -1,5 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { auth } from "../firebase";
 
 // ── Fonts injected once ───────────────────────────────────────────────────────
 const fontLink = document.createElement("link");
@@ -94,7 +96,15 @@ function Navbar() {
     window.addEventListener("scroll", h);
     return () => window.removeEventListener("scroll", h);
   }, []);
+  const [user, setUser] = useState(null);
 
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+
+    return () => unsub();
+  }, []);
   return (
     <nav style={{
       position: "fixed", top: 0, left: 0, right: 0, zIndex: 200, height: 62,
@@ -117,7 +127,7 @@ function Navbar() {
       </a>
 
       <div style={{ display: "flex", gap: 8 }}>
-        {[["Home", "/"], ["Simulation", "/simulation"]].map(([label, path]) => (
+        {[["Home", "/"], ["Simulation", user ? "/simulation" : "/login"]].map(([label, path]) => (
           <button key={label} onClick={() => navigate(path)} style={{ color: T.muted, fontSize: 14, fontWeight: 500, background: "none", border: "none", padding: "6px 14px", borderRadius: 7, transition: "all .2s", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}
             onMouseEnter={e => { e.currentTarget.style.color = T.white; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
             onMouseLeave={e => { e.currentTarget.style.color = T.muted; e.currentTarget.style.background = "transparent"; }}>
@@ -126,10 +136,26 @@ function Navbar() {
         ))}
       </div>
 
-      <button onClick={() => navigate("/login")} style={{ padding: "7px 20px", borderRadius: 8, border: `1px solid ${T.border}`, background: "transparent", color: T.white, fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 500, cursor: "pointer", transition: "all .2s" }}
-        onMouseEnter={e => { e.currentTarget.style.background = "rgba(245,200,66,0.1)"; e.currentTarget.style.borderColor = T.yellow; e.currentTarget.style.color = T.yellow; }}
-        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.white; }}>
-        Login
+      <button
+        onClick={() => {
+          if (user) {
+            signOut(auth);
+            navigate("/");
+          } else {
+            navigate("/login");
+          }
+        }}
+        style={{
+          padding: "7px 20px",
+          borderRadius: 8,
+          border: `1px solid ${T.border}`,
+          background: "transparent",
+          color: T.white,
+          fontWeight: 600,
+          cursor: "pointer"
+        }}
+      >
+        {user ? "Logout" : "Login"}
       </button>
     </nav>
   );
@@ -137,6 +163,15 @@ function Navbar() {
 
 // ── Hero ──────────────────────────────────────────────────────────────────────
 function Hero() {
+  const [user, setUser] = useState(null);
+
+useEffect(() => {
+  const unsub = onAuthStateChanged(auth, (currentUser) => {
+    setUser(currentUser);
+  });
+
+  return () => unsub();
+}, []);
   const navigate = useNavigate();
   const [ref, style] = useFade(0);
   return (
@@ -151,7 +186,7 @@ function Hero() {
           Predict congestion, optimize signals, and improve traffic efficiency in real time.
         </p>
         <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-          <button onClick={() => navigate("/login")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "13px 26px", borderRadius: 9, background: T.yellow, color: "#060C18", fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 600, cursor: "pointer", border: "none", transition: "all .2s" }}
+          <button onClick={() => navigate(user ? "/simulation" : "/login")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "13px 26px", borderRadius: 9, background: T.yellow, color: "#060C18", fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 600, cursor: "pointer", border: "none", transition: "all .2s" }}
 
             onMouseEnter={e => { e.currentTarget.style.background = "#FFD700"; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(245,200,66,0.25)"; }}
             onMouseLeave={e => { e.currentTarget.style.background = T.yellow; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}>

@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { signOut } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { doc, setDoc, updateDoc, getDoc, collection, query, orderBy, limit, getDocs } from "firebase/firestore";
 
@@ -34,7 +35,7 @@ function computeAI(counts, amb) {
   const dirs = ["N", "S", "E", "W"];
   const pri = amb ? amb.lane : dirs.reduce((b, d) => counts[d] > counts[b] ? d : b, "N");
   const cong = {};
-  for(const d of dirs)cong[d]=Math.min(99,Math.round((counts[d]/30)*100));
+  for (const d of dirs) cong[d] = Math.min(99, Math.round((counts[d] / 30) * 100));
   let dur;
   if (amb) { dur = 35; }
   else {
@@ -505,7 +506,7 @@ function TopStrip({ ai, activeLane, sessionSecs, transitioning, navigate }) {
     <div style={{ background: C.bg, borderBottom: `1px solid ${C.border}`, userSelect: "none", flexShrink: 0 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 18px", borderBottom: `1px solid ${C.border}40` }}>
         <span
-          onClick={() => navigate(-1)}
+          onClick={() => navigate("/")}
           style={{
             color: C.muted,
             fontSize: 12,
@@ -513,7 +514,23 @@ function TopStrip({ ai, activeLane, sessionSecs, transitioning, navigate }) {
             letterSpacing: "0.02em"
           }}
         >
-          ← Back
+          Home
+        </span>
+        <span style={{ color: C.border }}>│</span>
+
+        <span
+          onClick={async () => {
+            await signOut(auth);
+            navigate("/login");
+          }}
+          style={{
+            color: C.muted,
+            fontSize: 12,
+            cursor: "pointer",
+            letterSpacing: "0.02em"
+          }}
+        >
+          Logout
         </span>
         <span style={{ color: C.border }}>│</span>
         <span style={{ color: C.text, fontSize: 11, fontWeight: 500, letterSpacing: "0.1em" }}>EVALANE SIMULATION</span>
@@ -577,8 +594,8 @@ function LaneCard({ dir, ui, ai, onOpen, customTime, editing, onEditStart, onEdi
   const isYellow = ui.activeLane === dir && ui.transitioning;
   const hasAmb = ui.ambulance?.lane === dir;
   const count = ui.laneCounts?.[dir] ?? 0;
-  const capacity = 30; 
-const congPct = Math.min(99, Math.round((count / capacity) * 100));
+  const capacity = 30;
+  const congPct = Math.min(99, Math.round((count / capacity) * 100));
   const bc = barColor(congPct);
   const isAIPick = ai.lane === dir;
   const dispDur = customTime ?? 30;
@@ -726,9 +743,10 @@ export default function EvalaneSimPage() {
   const [backendAI, setBackendAI] = useState(null);
   const [previousScore, setPreviousScore] = useState(null);
   const [score, setScore] = useState(0);
+  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(() => {
-  return 0;
-});
+    return localStorage.getItem("evalaneTutorialDone") ? null : 0;
+  });
 
   const localAI = useMemo(() => computeAI(ui.laneCounts, ui.ambulance), [ui.laneCounts, ui.ambulance]);
   const ai = backendAI || localAI;
@@ -1096,52 +1114,52 @@ export default function EvalaneSimPage() {
       score >= 60 ? { label: "Good", color: "#00d4aa" } :
         score >= 40 ? { label: "Satisfactory", color: "#ffcc00" } :
           { label: "Needs Improvement", color: "#ff4444" };
-const finishTutorial = () => {
-  localStorage.setItem("evalaneTutorialDone", "true");
-  setTutorialStep(null);
-};
-          const tutorialSteps = [
-  {
-    title: "AI Recommendation",
-    text: "This section shows the lane suggested by the AI model and the recommended green-light duration.",
-    top: 95,
-    left: "50%",
-    arrow: {
-      top: -8,
-      left: 140
+  const finishTutorial = () => {
+    localStorage.setItem("evalaneTutorialDone", "true");
+    setTutorialStep(null);
+  };
+  const tutorialSteps = [
+    {
+      title: "AI Recommendation",
+      text: "This section shows the lane suggested by the AI model and the recommended green-light duration.",
+      top: 95,
+      left: "50%",
+      arrow: {
+        top: -8,
+        left: 140
+      }
+    },
+    {
+      title: "Lane Controls",
+      text: "Use this panel to open a lane manually and compare your decision with the AI suggestion.",
+      top: 170,
+      left: 270,
+      arrow: {
+        top: 40,
+        left: -8
+      }
+    },
+    {
+      title: "Change Time",
+      text: "You can adjust the green-light duration before opening a lane.",
+      top: 360,
+      left: 270,
+      arrow: {
+        top: 110,
+        left: -8
+      }
+    },
+    {
+      title: "Score",
+      text: "Your score improves when your decisions match the AI recommendation.",
+      bottom: 70,
+      right: 110,
+      arrow: {
+        bottom: -8,
+        left: 275
+      }
     }
-  },
-  {
-    title: "Lane Controls",
-    text: "Use this panel to open a lane manually and compare your decision with the AI suggestion.",
-    top: 170,
-    left: 270,
-    arrow: {
-      top: 40,
-      left: -8
-    }
-  },
-  {
-    title: "Change Time",
-    text: "You can adjust the green-light duration before opening a lane.",
-    top: 360,
-    left: 270,
-    arrow: {
-      top: 110,
-      left: -8
-    }
-  },
-  {
-    title: "Score",
-    text: "Your score improves when your decisions match the AI recommendation.",
-    bottom: 70,
-    right: 110,
-    arrow: {
-      bottom: -8,
-      left: 275
-    }
-  }
-];
+  ];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: C.bg, color: C.text, overflow: "hidden", fontFamily: "-apple-system,'Segoe UI',sans-serif" }}>
@@ -1318,20 +1336,34 @@ const finishTutorial = () => {
                     <div style={{ color: "#5a6080", fontSize: 11, marginTop: 4 }}>out of 100</div>
                   </div>
 
-                  <div style={{
-                    padding: "10px 16px",
-                    background: `${grade.color}12`,
-                    border: `1px solid ${grade.color}40`,
-                    borderRadius: 8,
-                    marginBottom: 20,
-                    color: grade.color,
-                    fontSize: 14,
-                    fontWeight: 600,
-                    letterSpacing: "0.06em"
-                  }}>
-                    {grade.label}
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      gap: 8,
+                      marginBottom: 20
+                    }}
+                  >
+                    <span
+                      style={{
+                        color: grade.color,
+                        fontSize: 10
+                      }}
+                    >
+                      ●
+                    </span>
+                    <span
+                      style={{
+                        color: grade.color,
+                        fontSize: 18,
+                        fontWeight: 700,
+                        letterSpacing: "0.04em"
+                      }}
+                    >
+                      {grade.label}
+                    </span>
                   </div>
-
                   <button onClick={resetSim} style={{ background: "#00d47e", color: "#00140d", border: "none", borderRadius: 8, padding: "12px 28px", fontWeight: 700, cursor: "pointer", fontSize: 14 }}>
                     Run New Session
                   </button>
@@ -1344,8 +1376,31 @@ const finishTutorial = () => {
               {paused ? "▶  RESUME" : "⏸  PAUSE"}
             </button>
             <button onClick={resetSim} style={{ padding: "6px 18px", borderRadius: 4, fontSize: 11, fontWeight: 500, cursor: "pointer", border: `1px solid ${C.border}`, fontFamily: "monospace", letterSpacing: "0.08em", background: C.card, color: C.muted }}>⟳  RESET</button>
-            <div style={{ flex: 1 }} />
 
+            <button
+              onClick={() => {
+                setShowFinishConfirm(true);
+                setPaused(true);
+                pausedRef.current = true;
+                if (simRef.current) simRef.current.paused = true;
+              }}
+              style={{
+                padding: "6px 18px",
+                borderRadius: 4,
+                fontSize: 11,
+                fontWeight: 500,
+                cursor: "pointer",
+                border: `1px solid ${C.border}`,
+                fontFamily: "monospace",
+                letterSpacing: "0.08em",
+                background: C.card,
+                color: C.muted
+              }}
+            >
+              ⏹ FINISH
+            </button>
+
+            <div style={{ flex: 1 }} />
             <span style={{ color: "#fff", fontSize: 9, letterSpacing: "0.1em" }}>SCORE</span>
             <span style={{ color: scoreCol, fontFamily: "monospace", fontSize: 22, fontWeight: "bold" }}>
               {score}
@@ -1355,109 +1410,185 @@ const finishTutorial = () => {
         </div>
       </div>
       {tutorialStep !== null && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            background: "rgba(0,0,0,0.35)",
+            pointerEvents: "auto"
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              ...tutorialSteps[tutorialStep],
+              transform:
+                tutorialSteps[tutorialStep].left === "50%"
+                  ? "translateX(-50%)"
+                  : "none",
+              width: 310,
+              background: "#ffffff",
+              color: "#0b1020",
+              borderRadius: 12,
+              padding: "16px 18px",
+              boxShadow: "0 18px 60px rgba(0,0,0,0.45)",
+              border: "1px solid rgba(0,0,0,0.08)"
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                width: 16,
+                height: 16,
+                background: "#ffffff",
+                transform: "rotate(45deg)",
+                ...tutorialSteps[tutorialStep].arrow
+              }}
+            />
+            <div
+              style={{
+                fontSize: 15,
+                fontWeight: 800,
+                marginBottom: 6
+              }}
+            >
+              {tutorialSteps[tutorialStep].title}
+            </div>
+
+            <div
+              style={{
+                fontSize: 13,
+                lineHeight: 1.5,
+                color: "#344054",
+                marginBottom: 14
+              }}
+            >
+              {tutorialSteps[tutorialStep].text}
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between"
+              }}
+            >
+              <span style={{ fontSize: 12, color: "#667085" }}>
+                {tutorialStep + 1} / {tutorialSteps.length}
+              </span>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={finishTutorial}
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    color: "#667085",
+                    cursor: "pointer",
+                    fontSize: 12
+                  }}
+                >
+                  Skip
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (tutorialStep === tutorialSteps.length - 1) {
+                      finishTutorial();
+                    } else {
+                      setTutorialStep(s => s + 1);
+                    }
+                  }}
+                  style={{
+                    border: "none",
+                    background: "#00d47e",
+                    color: "#00140d",
+                    borderRadius: 8,
+                    padding: "8px 14px",
+                    fontWeight: 700,
+                    cursor: "pointer"
+                  }}
+                >
+                  {tutorialStep === tutorialSteps.length - 1 ? "Got it!" : "Next"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showFinishConfirm && (
   <div
     style={{
-      position: "fixed",
-      inset: 0,
-      zIndex: 9999,
-      background: "rgba(0,0,0,0.35)",
-      pointerEvents: "auto"
+      position:"absolute",
+      inset:0,
+      display:"flex",
+      alignItems:"center",
+      justifyContent:"center",
+      background:"rgba(0,0,0,0.55)",
+      zIndex:30
     }}
   >
     <div
       style={{
-        position: "absolute",
-        ...tutorialSteps[tutorialStep],
-        transform:
-          tutorialSteps[tutorialStep].left === "50%"
-            ? "translateX(-50%)"
-            : "none",
-        width: 310,
-        background: "#ffffff",
-        color: "#0b1020",
-        borderRadius: 12,
-        padding: "16px 18px",
-        boxShadow: "0 18px 60px rgba(0,0,0,0.45)",
-        border: "1px solid rgba(0,0,0,0.08)"
+        background:"#071018",
+        border:"1px solid rgba(255,204,0,.35)",
+        borderRadius:12,
+        padding:"26px 34px",
+        textAlign:"center",
+        minWidth:340,
+        boxShadow:"0 12px 50px rgba(0,0,0,.65)"
       }}
     >
-      <div
-  style={{
-    position: "absolute",
-    width: 16,
-    height: 16,
-    background: "#ffffff",
-    transform: "rotate(45deg)",
-    ...tutorialSteps[tutorialStep].arrow
-  }}
-/>
-      <div
-        style={{
-          fontSize: 15,
-          fontWeight: 800,
-          marginBottom: 6
-        }}
-      >
-        {tutorialSteps[tutorialStep].title}
+      <div style={{color:"#fff",fontSize:22,fontWeight:700,marginBottom:10}}>
+        Finish Session?
       </div>
 
-      <div
-        style={{
-          fontSize: 13,
-          lineHeight: 1.5,
-          color: "#344054",
-          marginBottom: 14
-        }}
-      >
-        {tutorialSteps[tutorialStep].text}
+      <div style={{color:"#8aa0b8",fontSize:14,marginBottom:22}}>
+        You can end the simulation now and view your current results.
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between"
-        }}
-      >
-        <span style={{ fontSize: 12, color: "#667085" }}>
-          {tutorialStep + 1} / {tutorialSteps.length}
-        </span>
+      <div style={{display:"flex",gap:10,justifyContent:"center"}}>
+        <button
+          onClick={() => {
+            setShowFinishConfirm(false);
+            setPaused(false);
+            pausedRef.current = false;
+            if (simRef.current) simRef.current.paused = false;
+          }}
+          style={{
+            background:C.card,
+            color:C.muted,
+            border:`1px solid ${C.border}`,
+            borderRadius:8,
+            padding:"10px 22px",
+            fontWeight:700,
+            cursor:"pointer"
+          }}
+        >
+          Cancel
+        </button>
 
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
-            onClick={finishTutorial}
-            style={{
-              border: "none",
-              background: "transparent",
-              color: "#667085",
-              cursor: "pointer",
-              fontSize: 12
-            }}
-          >
-            Skip
-          </button>
-
-          <button
-            onClick={() => {
-              if (tutorialStep === tutorialSteps.length - 1) {
-                finishTutorial();
-              } else {
-                setTutorialStep(s => s + 1);
-              }
-            }}
-            style={{
-              border: "none",
-              background: "#00d47e",
-              color: "#00140d",
-              borderRadius: 8,
-              padding: "8px 14px",
-              fontWeight: 700,
-              cursor: "pointer"
-            }}
-          >
-            {tutorialStep === tutorialSteps.length - 1 ? "Got it!" : "Next"}
-          </button>
-        </div>
+        <button
+          onClick={() => {
+            setShowFinishConfirm(false);
+            setFinished(true);
+            setPaused(true);
+            pausedRef.current = true;
+            if (simRef.current) simRef.current.paused = true;
+          }}
+          style={{
+            background:"#00d47e",
+            color:"#00140d",
+            border:"none",
+            borderRadius:8,
+            padding:"10px 22px",
+            fontWeight:700,
+            cursor:"pointer"
+          }}
+        >
+          Finish
+        </button>
       </div>
     </div>
   </div>
