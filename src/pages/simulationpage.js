@@ -725,6 +725,9 @@ export default function EvalaneSimPage() {
   const [backendAI, setBackendAI] = useState(null);
   const [previousScore, setPreviousScore] = useState(null);
   const [score, setScore] = useState(0);
+  const [tutorialStep, setTutorialStep] = useState(() => {
+  return localStorage.getItem("evalaneTutorialDone") ? null : 0;
+});
 
   const localAI = useMemo(() => computeAI(ui.laneCounts, ui.ambulance), [ui.laneCounts, ui.ambulance]);
   const ai = backendAI || localAI;
@@ -1092,6 +1095,52 @@ export default function EvalaneSimPage() {
       score >= 60 ? { label: "Good", color: "#00d4aa" } :
         score >= 40 ? { label: "Satisfactory", color: "#ffcc00" } :
           { label: "Needs Improvement", color: "#ff4444" };
+const finishTutorial = () => {
+  localStorage.setItem("evalaneTutorialDone", "true");
+  setTutorialStep(null);
+};
+          const tutorialSteps = [
+  {
+    title: "AI Recommendation",
+    text: "This section shows the lane suggested by the AI model and the recommended green-light duration.",
+    top: 95,
+    left: "50%",
+    arrow: {
+      bottom: -8,
+      left: 140
+    }
+  },
+  {
+    title: "Lane Controls",
+    text: "Use this panel to open a lane manually and compare your decision with the AI suggestion.",
+    top: 170,
+    left: 270,
+    arrow: {
+      top: 40,
+      right: -8
+    }
+  },
+  {
+    title: "Change Time",
+    text: "You can adjust the green-light duration before opening a lane.",
+    top: 360,
+    left: 270,
+    arrow: {
+      top: 40,
+      right: -8
+    }
+  },
+  {
+    title: "Score",
+    text: "Your score improves when your decisions match the AI recommendation.",
+    bottom: 70,
+    right: 110,
+    arrow: {
+      top: 40,
+      left: -8
+    }
+  }
+];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: C.bg, color: C.text, overflow: "hidden", fontFamily: "-apple-system,'Segoe UI',sans-serif" }}>
@@ -1304,6 +1353,114 @@ export default function EvalaneSimPage() {
           </div>
         </div>
       </div>
+      {tutorialStep !== null && (
+  <div
+    style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 9999,
+      background: "rgba(0,0,0,0.35)",
+      pointerEvents: "auto"
+    }}
+  >
+    <div
+      style={{
+        position: "absolute",
+        ...tutorialSteps[tutorialStep],
+        transform:
+          tutorialSteps[tutorialStep].left === "50%"
+            ? "translateX(-50%)"
+            : "none",
+        width: 310,
+        background: "#ffffff",
+        color: "#0b1020",
+        borderRadius: 12,
+        padding: "16px 18px",
+        boxShadow: "0 18px 60px rgba(0,0,0,0.45)",
+        border: "1px solid rgba(0,0,0,0.08)"
+      }}
+    >
+      <div
+  style={{
+    position: "absolute",
+    width: 16,
+    height: 16,
+    background: "#ffffff",
+    transform: "rotate(45deg)",
+    ...tutorialSteps[tutorialStep].arrow
+  }}
+/>
+      <div
+        style={{
+          fontSize: 15,
+          fontWeight: 800,
+          marginBottom: 6
+        }}
+      >
+        {tutorialSteps[tutorialStep].title}
+      </div>
+
+      <div
+        style={{
+          fontSize: 13,
+          lineHeight: 1.5,
+          color: "#344054",
+          marginBottom: 14
+        }}
+      >
+        {tutorialSteps[tutorialStep].text}
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between"
+        }}
+      >
+        <span style={{ fontSize: 12, color: "#667085" }}>
+          {tutorialStep + 1} / {tutorialSteps.length}
+        </span>
+
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={finishTutorial}
+            style={{
+              border: "none",
+              background: "transparent",
+              color: "#667085",
+              cursor: "pointer",
+              fontSize: 12
+            }}
+          >
+            Skip
+          </button>
+
+          <button
+            onClick={() => {
+              if (tutorialStep === tutorialSteps.length - 1) {
+                finishTutorial();
+              } else {
+                setTutorialStep(s => s + 1);
+              }
+            }}
+            style={{
+              border: "none",
+              background: "#00d47e",
+              color: "#00140d",
+              borderRadius: 8,
+              padding: "8px 14px",
+              fontWeight: 700,
+              cursor: "pointer"
+            }}
+          >
+            {tutorialStep === tutorialSteps.length - 1 ? "Got it!" : "Next"}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }
