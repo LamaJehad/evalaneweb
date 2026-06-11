@@ -34,7 +34,7 @@ function computeAI(counts, amb) {
   const dirs = ["N", "S", "E", "W"];
   const pri = amb ? amb.lane : dirs.reduce((b, d) => counts[d] > counts[b] ? d : b, "N");
   const cong = {};
-  for (const d of dirs) cong[d] = Math.min(99, Math.round(counts[d] / 15 * 100));
+  for(const d of dirs)cong[d]=Math.min(99,Math.round((counts[d]/30)*100));
   let dur;
   if (amb) { dur = 35; }
   else {
@@ -222,8 +222,8 @@ function drawHeat(ctx, cong, gf) {
   for (const [d, r] of Object.entries(R)) {
     const c = cong[d], g = gf[d]; let col = null;
     if (g > 0 && c < 0.3) col = `rgba(40,218,110,${(g / 1500) * 0.52})`;
-    else if (c > 0.62) col = `rgba(215,38,38,${0.22 + c * 0.32})`;
-    else if (c > 0.28) col = `rgba(228,138,18,${0.08 + (c - 0.28) * 0.55})`;
+    else if (c > 0.75) col = `rgba(215,38,38,${0.22 + c * 0.32})`;
+    else if (c > 0.40) col = `rgba(228,138,18,${0.08 + (c - 0.28) * 0.55})`;
     if (col) { ctx.fillStyle = col; ctx.fillRect(...r); }
   }
 }
@@ -577,7 +577,8 @@ function LaneCard({ dir, ui, ai, onOpen, customTime, editing, onEditStart, onEdi
   const isYellow = ui.activeLane === dir && ui.transitioning;
   const hasAmb = ui.ambulance?.lane === dir;
   const count = ui.laneCounts?.[dir] ?? 0;
-  const congPct = Math.min(99, Math.round(count / 15 * 100));
+  const capacity = 30; 
+const congPct = Math.min(99, Math.round((count / capacity) * 100));
   const bc = barColor(congPct);
   const isAIPick = ai.lane === dir;
   const dispDur = customTime ?? 30;
@@ -726,7 +727,7 @@ export default function EvalaneSimPage() {
   const [previousScore, setPreviousScore] = useState(null);
   const [score, setScore] = useState(0);
   const [tutorialStep, setTutorialStep] = useState(() => {
-  return localStorage.getItem("evalaneTutorialDone") ? null : 0;
+  return 0;
 });
 
   const localAI = useMemo(() => computeAI(ui.laneCounts, ui.ambulance), [ui.laneCounts, ui.ambulance]);
@@ -830,7 +831,7 @@ export default function EvalaneSimPage() {
       // ── Lane counts & congestion ─────────────────────────────────────────
       for (const d of ["N", "S", "E", "W"]) {
         sim.laneCounts[d] = sim.cars.filter(c => c.ap === d && !c.done && c.pi <= 1 && !c.isAmbulance).length;
-        const tgt = Math.min(1, sim.laneCounts[d] / 9);
+        const tgt = Math.min(1, sim.laneCounts[d] / 20);
         sim.cong[d] += (tgt - sim.cong[d]) * Math.min(0.09, dt * 0.003);
         if (sim.cong[d] < 0.004) sim.cong[d] = 0;
       }
@@ -1106,7 +1107,7 @@ const finishTutorial = () => {
     top: 95,
     left: "50%",
     arrow: {
-      bottom: -8,
+      top: -8,
       left: 140
     }
   },
@@ -1117,7 +1118,7 @@ const finishTutorial = () => {
     left: 270,
     arrow: {
       top: 40,
-      right: -8
+      left: -8
     }
   },
   {
@@ -1126,8 +1127,8 @@ const finishTutorial = () => {
     top: 360,
     left: 270,
     arrow: {
-      top: 40,
-      right: -8
+      top: 110,
+      left: -8
     }
   },
   {
@@ -1136,8 +1137,8 @@ const finishTutorial = () => {
     bottom: 70,
     right: 110,
     arrow: {
-      top: 40,
-      left: -8
+      bottom: -8,
+      left: 275
     }
   }
 ];
