@@ -894,10 +894,9 @@ export default function EvalaneSimPage() {
       const userRef = doc(db, "users", user.uid);
       const userSnap = await getDoc(userRef);
       if (userSnap.exists()) {
-        const current = userSnap.data().bestScore;
-        if (current === "N/A" || finalScore > Number(current)) {
-          await updateDoc(userRef, { bestScore: finalScore });
-        }
+        await updateDoc(userRef, {
+          previousScore: finalScore
+        });
       }
     } catch (err) {
       console.error("Failed to save session:", err);
@@ -1518,81 +1517,81 @@ export default function EvalaneSimPage() {
         </div>
       )}
       {showFinishConfirm && (
-  <div
-    style={{
-      position:"absolute",
-      inset:0,
-      display:"flex",
-      alignItems:"center",
-      justifyContent:"center",
-      background:"rgba(0,0,0,0.55)",
-      zIndex:30
-    }}
-  >
-    <div
-      style={{
-        background:"#071018",
-        border:"1px solid rgba(255,204,0,.35)",
-        borderRadius:12,
-        padding:"26px 34px",
-        textAlign:"center",
-        minWidth:340,
-        boxShadow:"0 12px 50px rgba(0,0,0,.65)"
-      }}
-    >
-      <div style={{color:"#fff",fontSize:22,fontWeight:700,marginBottom:10}}>
-        Finish Session?
-      </div>
-
-      <div style={{color:"#8aa0b8",fontSize:14,marginBottom:22}}>
-        You can end the simulation now and view your current results.
-      </div>
-
-      <div style={{display:"flex",gap:10,justifyContent:"center"}}>
-        <button
-          onClick={() => {
-            setShowFinishConfirm(false);
-            setPaused(false);
-            pausedRef.current = false;
-            if (simRef.current) simRef.current.paused = false;
-          }}
+        <div
           style={{
-            background:C.card,
-            color:C.muted,
-            border:`1px solid ${C.border}`,
-            borderRadius:8,
-            padding:"10px 22px",
-            fontWeight:700,
-            cursor:"pointer"
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(0,0,0,0.55)",
+            zIndex: 30
           }}
         >
-          Cancel
-        </button>
+          <div
+            style={{
+              background: "#071018",
+              border: "1px solid rgba(255,204,0,.35)",
+              borderRadius: 12,
+              padding: "26px 34px",
+              textAlign: "center",
+              minWidth: 340,
+              boxShadow: "0 12px 50px rgba(0,0,0,.65)"
+            }}
+          >
+            <div style={{ color: "#fff", fontSize: 22, fontWeight: 700, marginBottom: 10 }}>
+              Finish Session?
+            </div>
 
-        <button
-          onClick={() => {
-            setShowFinishConfirm(false);
-            setFinished(true);
-            setPaused(true);
-            pausedRef.current = true;
-            if (simRef.current) simRef.current.paused = true;
-          }}
-          style={{
-            background:"#00d47e",
-            color:"#00140d",
-            border:"none",
-            borderRadius:8,
-            padding:"10px 22px",
-            fontWeight:700,
-            cursor:"pointer"
-          }}
-        >
-          Finish
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+            <div style={{ color: "#8aa0b8", fontSize: 14, marginBottom: 22 }}>
+              You can end the simulation now and view your current results.
+            </div>
+
+            <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+              <button
+                onClick={() => {
+                  setShowFinishConfirm(false);
+                  setPaused(false);
+                  pausedRef.current = false;
+                  if (simRef.current) simRef.current.paused = false;
+                }}
+                style={{
+                  background: C.card,
+                  color: C.muted,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 8,
+                  padding: "10px 22px",
+                  fontWeight: 700,
+                  cursor: "pointer"
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowFinishConfirm(false);
+                  setFinished(true);
+                  setPaused(true);
+                  pausedRef.current = true;
+                  if (simRef.current) simRef.current.paused = true;
+                }}
+                style={{
+                  background: "#00d47e",
+                  color: "#00140d",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "10px 22px",
+                  fontWeight: 700,
+                  cursor: "pointer"
+                }}
+              >
+                Finish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
