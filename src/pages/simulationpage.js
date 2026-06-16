@@ -969,43 +969,23 @@ export default function EvalaneSimPage() {
         const sim = simRef.current;
         if (!sim) return;
         const counts = sim.laneCounts;
-
-        const modelCounts = { ...counts };
-        if (sim.activeLane && !sim.transitioning) {
-          modelCounts[sim.activeLane] = Math.max(0, modelCounts[sim.activeLane] - 8);
-        }
-
-        const total = modelCounts.N + modelCounts.S + modelCounts.E + modelCounts.W;
-        const dominant = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
-
         const local = computeAI(counts, sim.ambulance);
         const response = await fetch("https://evalane-api.onrender.com/predict", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            Lane_N_Count: modelCounts.N,
-            Lane_S_Count: modelCounts.S,
-            Lane_E_Count: modelCounts.E,
-            Lane_W_Count: modelCounts.W,
-
+            Lane_N_Count: counts.N,
+            Lane_S_Count: counts.S,
+            Lane_E_Count: counts.E,
+            Lane_W_Count: counts.W,
             Congestion_N: local.cong.N,
             Congestion_S: local.cong.S,
             Congestion_E: local.cong.E,
             Congestion_W: local.cong.W,
             Current_Green_Lane: sim.activeLane,
             Green_Timer_Remaining: Math.ceil(sim.greenTimer / 1000),
-
-            Total_Vehicles: total,
-            Lane_Imbalance:
-              Math.max(...Object.values(modelCounts)) -
-              Math.min(...Object.values(modelCounts)),
-            Dominant_Lane: dominant,
-            Obstacle_Present: 0,
             Event_Type: sim.ambulance ? "Ambulance" : "Normal",
             Event_Lane: sim.ambulance ? sim.ambulance.lane : null,
-            Dedicated_Lane: sim.ambulance ? 1 : 0,
-            Bypass_Active: sim.ambulance ? 1 : 0,
-            Clear_Zone_Active: sim.ambulance ? 1 : 0
           })
         });
         const data = await response.json();
