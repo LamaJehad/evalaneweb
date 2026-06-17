@@ -560,7 +560,7 @@ function TopStrip({ ai, activeLane, sessionSecs, transitioning, navigate }) {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0 }}>
           <span style={{ color: "#fff", fontSize: 9, letterSpacing: "0.1em", whiteSpace: "nowrap" }}>RECOMMENDED LANE</span>
-          <DirBadge dir={ai.lane} sz={26} />// Display AI recommended lane
+          <DirBadge dir={ai.lane} sz={26} />
           <span style={{ color: C.text, fontSize: 14, fontWeight: 500 }}>{ai.name}</span>
           <span style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 8px", borderRadius: 10, background: "#0a201c", border: "1px solid #00d4aa35", color: C.teal, fontSize: 9, letterSpacing: "0.08em", whiteSpace: "nowrap" }}>● SUGGESTED</span>
         </div>
@@ -569,7 +569,7 @@ function TopStrip({ ai, activeLane, sessionSecs, transitioning, navigate }) {
 
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
           <span style={{ color: "#fff", fontSize: 9, letterSpacing: "0.1em", whiteSpace: "nowrap" }}>SUGGESTED DURATION</span>
-          // Display AI suggested green-light duration
+  
           <span style={{ color: C.yellow, fontSize: 26, fontFamily: "monospace", fontWeight: "bold", lineHeight: 1 }}>{ai.dur}</span>
           <span style={{ color: "#fff", fontSize: 9 }}>seconds</span>
         </div>

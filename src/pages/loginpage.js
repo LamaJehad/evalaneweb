@@ -267,13 +267,13 @@ function LoginPage() {
               Register
             </button>
           </div>
-          // Display validation or authentication messages
+          
           {error && (
             <div className={error.startsWith("✓") ? "login-success" : "login-error"}>
               {error}
             </div>
           )}
-// Officer name field appears only during registration
+
           {!isLogin && (
             <div className="login-field">
               <label className="login-label">Officer Name</label>
@@ -281,13 +281,13 @@ function LoginPage() {
                 value={officerName} onChange={e => setOfficerName(e.target.value)} />
             </div>
           )}
-           // Email input field
+          
           <div className="login-field">
             <label className="login-label">Email</label>
             <input className="login-input" type="email" placeholder="officer@evalane.com"
               value={email} onChange={e => setEmail(e.target.value)} />
           </div>
-// Password input field
+
           <div className="login-field">
             <label className="login-label">Password</label>
             <div style={{ position: "relative" }}>
@@ -298,7 +298,7 @@ function LoginPage() {
               </span>
             </div>
           </div>
-          // Sends password reset email to the entered address
+          
 
           <span onClick={() => sendPasswordResetEmail(auth, email)
             .then(() => setError("✓ Password reset email sent. Check your inbox."))
@@ -315,7 +315,6 @@ function LoginPage() {
             <span style={{ color: "rgba(255,255,255,0.25)", fontSize: 12 }}>or</span>
             <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.08)" }} />
           </div>
-// Login using Google account
           <button
             onClick={handleGoogle}
             disabled={loading}
@@ -346,7 +345,7 @@ function LoginPage() {
             </svg>
             Continue with Google
           </button>
-          // Navigate back to landing page
+          
           <p className="login-back" onClick={() => navigate("/")}>← Back to home</p>
         </div>
       </div>
