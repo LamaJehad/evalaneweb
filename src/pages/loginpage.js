@@ -178,13 +178,14 @@ function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-
+  // Handles both login and account registration
   const handleSubmit = async () => {
     setError("");
     setLoading(true);
 
     try {
       if (isLogin) {
+        // Authenticate user using Firebase Authentication
         await signInWithEmailAndPassword(auth, email, password);
         navigate("/simulation");
       } else {
@@ -193,14 +194,16 @@ function LoginPage() {
           setLoading(false);
           return;
         }
+        // Create new Firebase Authentication account
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        // Save additional officer information in Firestore
         await setDoc(doc(db, "users", userCredential.user.uid), {
           officerName: officerName,
           email: email,
-          bestScore: "N/A",
+          previousScore: "N/A",
           createdAt: new Date()
         });
-        navigate("/dashboard");
+        navigate("/simulation");
       }
     } catch (err) {
       if (err.code === "auth/email-already-in-use") setError("This email is already registered.");
@@ -216,18 +219,21 @@ function LoginPage() {
     setError("");
     setLoading(true);
     try {
+      // Create Google authentication provider
       const provider = new GoogleAuthProvider();
+      // Open Google sign-in popup
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
       // Check if user doc exists, if not create it
       const ref = doc(db, "users", user.uid);
+      // Check if user already exists in database
       const snap = await getDoc(ref);
       if (!snap.exists()) {
         await setDoc(ref, {
           officerName: user.displayName || "Officer",
           email: user.email,
-          bestScore: "N/A",
+          previousScore: "N/A",
           createdAt: new Date()
         });
       }
@@ -261,13 +267,13 @@ function LoginPage() {
               Register
             </button>
           </div>
-
+          // Display validation or authentication messages
           {error && (
             <div className={error.startsWith("✓") ? "login-success" : "login-error"}>
               {error}
             </div>
           )}
-
+// Officer name field appears only during registration
           {!isLogin && (
             <div className="login-field">
               <label className="login-label">Officer Name</label>
@@ -275,13 +281,13 @@ function LoginPage() {
                 value={officerName} onChange={e => setOfficerName(e.target.value)} />
             </div>
           )}
-
+           // Email input field
           <div className="login-field">
             <label className="login-label">Email</label>
             <input className="login-input" type="email" placeholder="officer@evalane.com"
               value={email} onChange={e => setEmail(e.target.value)} />
           </div>
-
+// Password input field
           <div className="login-field">
             <label className="login-label">Password</label>
             <div style={{ position: "relative" }}>
@@ -292,6 +298,8 @@ function LoginPage() {
               </span>
             </div>
           </div>
+          // Sends password reset email to the entered address
+
           <span onClick={() => sendPasswordResetEmail(auth, email)
             .then(() => setError("✓ Password reset email sent. Check your inbox."))
             .catch(e => setError(e.message))
@@ -307,7 +315,7 @@ function LoginPage() {
             <span style={{ color: "rgba(255,255,255,0.25)", fontSize: 12 }}>or</span>
             <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.08)" }} />
           </div>
-
+// Login using Google account
           <button
             onClick={handleGoogle}
             disabled={loading}
@@ -338,6 +346,7 @@ function LoginPage() {
             </svg>
             Continue with Google
           </button>
+          // Navigate back to landing page
           <p className="login-back" onClick={() => navigate("/")}>← Back to home</p>
         </div>
       </div>

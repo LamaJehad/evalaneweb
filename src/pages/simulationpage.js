@@ -4,10 +4,10 @@ import { signOut } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { doc, setDoc, updateDoc, getDoc, collection, query, orderBy, limit, getDocs } from "firebase/firestore";
 
-// ═══════════════════════════════════════════════════════════════════════════
+
 // GEOMETRY
-// ═══════════════════════════════════════════════════════════════════════════
 const W = 1000, H = 1000, CX = 500, CY = 500, L = 26;
+// Width of the incoming road section (3 lanes) & Width of the outgoing road section (2 lanes)
 const EW = 3 * L, XW = 2 * L;
 const IX1 = CX - EW, IX2 = CX + EW, IY1 = CY - EW, IY2 = CY + EW, IW = IX2 - IX1;
 const NLX = [CX + L / 2, CX + 3 * L / 2, CX + 5 * L / 2];
@@ -19,51 +19,63 @@ const SEX = [CX + L / 2, CX + 3 * L / 2, CX + 5 * L / 2];
 const EEY = [CY - L / 2, CY - 3 * L / 2, CY - 5 * L / 2];
 const WEY = [CY + L / 2, CY + 3 * L / 2, CY + 5 * L / 2];
 
-// ─── SPEED
+// ─── SPEED of cars
 const SPD = 0.9, CW = 10, CH = 16, GAP = 26;
 const SESSION_LIMIT = 240;
+// Color palette used for vehicle rendering
 const CLRS = ["#e74c3c", "#3498db", "#f1c40f", "#2ecc71", "#9b59b6", "#e67e22", "#1abc9c", "#e91e63", "#00b4d8", "#ff6b35"];
 const NAMES = { N: "North", S: "South", E: "East", W: "West" };
-const PEAK_HRS = new Set([7, 8, 9, 17, 18, 19]);
 const DIR_CLR = { N: "#3a8fff", S: "#ff6040", E: "#f1c40f", W: "#2ecc71" };
 let uid = 0;
 
 // ═══════════════════════════════════════════════════════════════════════════
-// AI ENGINE
+// AI ENGINE - fallback
 // ═══════════════════════════════════════════════════════════════════════════
 function computeAI(counts, amb) {
   const dirs = ["N", "S", "E", "W"];
   const pri = amb ? amb.lane : dirs.reduce((b, d) => counts[d] > counts[b] ? d : b, "N");
+  // Stores congestion percentage for each direction
   const cong = {};
   for (const d of dirs) cong[d] = Math.min(99, Math.round((counts[d] / 30) * 100));
+  // Stores the suggested green signal duration
   let dur;
+  // Give ambulance priority with a fixed green duration
   if (amb) { dur = 35; }
   else {
+    // Number of vehicles in the selected priority direction
     const mc = counts[pri];
+    // Low traffic: assign a short green duration
     if (mc < 3) dur = Math.round(18 + mc * 3.2);
     else if (mc < 6) dur = Math.round(28 + (mc - 3) * 4.2);
     else if (mc < 9) dur = Math.round(40 + (mc - 6) * 4.5);
     else if (mc < 12) dur = Math.round(53 + (mc - 9) * 3.8);
     else dur = Math.round(64 + (mc - 12) * 2.5);
-    if (PEAK_HRS.has(new Date().getHours())) dur = Math.round(dur * 1.1);
   }
+  // Keep duration within a safe range between 15 and 75 seconds
   dur = Math.min(75, Math.max(15, dur));
+  // Calculate average congestion across all four directions
   const avg = Math.round(Object.values(cong).reduce((a, b) => a + b, 0) / 4);
+  // Return the AI recommendation and congestion summary
   return {
     lane: pri, name: NAMES[pri], dur, cong, avg,
-    congested: avg > 45, peak: PEAK_HRS.has(new Date().getHours()), amb: !!amb
+    congested: avg > 45
   };
 }
-
-// ═══════════════════════════════════════════════════════════════════════════
-// CAR PATHS  (left lane → left, middle → straight, right → right or straight)
-// ═══════════════════════════════════════════════════════════════════════════
+// CAR PATHS 
+// Builds the route points for each vehicle.
+// The route depends on:
+// 1. Approach direction: North, South, East, or West
+// 2. Lane number: left, middle, or right
+// 3. Allowed lane movement: left turn, straight, or right turn
+// The returned array contains points that the car follows step by step.
 function mkPath(ap, ln) {
   const rnd = () => Math.random() < 0.5;
   if (ap === "N") {
+    // Get the x-position of the selected north lane
     const x = NLX[ln];
     if (ln === 0) return [{ x, y: -22 }, { x, y: IY1, w: 1 }, { x, y: CY }, { x: IX1, y: WEY[0] }, { x: -22, y: WEY[0] }];
     if (ln === 1) return [{ x, y: -22 }, { x, y: IY1, w: 1 }, { x, y: IY2 }, { x, y: H + 22 }];
+    // North right lane: randomly choose between right turn and straight movement
     return rnd() ? [{ x, y: -22 }, { x, y: IY1, w: 1 }, { x, y: CY }, { x: IX2, y: EEY[0] }, { x: W + 22, y: EEY[0] }]
       : [{ x, y: -22 }, { x, y: IY1, w: 1 }, { x, y: IY2 }, { x, y: H + 22 }];
   }
@@ -75,6 +87,7 @@ function mkPath(ap, ln) {
     return [{ x, y: H + 22 }, { x, y: IY2, w: 1 }, { x, y: CY }, { x: IX1, y: WEY[0] }, { x: -22, y: WEY[0] }];
   }
   if (ap === "E") {
+    // East approach: get the y-position of the selected east lane
     const y = ELY[ln];
     if (ln === 0) return rnd() ? [{ x: W + 22, y }, { x: IX2, y, w: 1 }, { x: CX, y }, { x: NEX[0], y: IY1 }, { x: NEX[0], y: -22 }]
       : [{ x: W + 22, y }, { x: IX2, y, w: 1 }, { x: IX1, y }, { x: -22, y }];
@@ -88,21 +101,24 @@ function mkPath(ap, ln) {
   return [{ x: -22, y }, { x: IX1, y, w: 1 }, { x: CX, y }, { x: NEX[0], y: IY1 }, { x: NEX[0], y: -22 }];
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 // CAR SPAWN
-// ═══════════════════════════════════════════════════════════════════════════
 function doSpawn(sim, ap, ln) {
-  const path = mkPath(ap, ln), s = path[0];
+  const path = mkPath(ap, ln),
+    // Starting point of the generated path
+    s = path[0];
+  // Check existing vehicles before spawning a new one
   for (const c of sim.cars)
+    // x,y Current vehicle position
     if (c.ap === ap && c.ln === ln && !c.done && Math.hypot(c.x - s.x, c.y - s.y) < 68) return;
   sim.cars.push({
     id: uid++, ap, ln, path, pi: 0, x: s.x, y: s.y,
+    // Initial vehicle rotation angle based on approach direction
     ang: { N: Math.PI / 2, S: -Math.PI / 2, E: Math.PI, W: 0 }[ap],
     color: CLRS[uid % CLRS.length], speed: SPD, isAmbulance: false, waiting: false, done: false
   });
 }
 
-// Spawn the ambulance emergency vehicle in the affected approach (middle lane, straight path)
+// Spawn the ambulance emergency vehicle
 function spawnAmbulanceCar(sim) {
   const ap = sim.ambulance.lane;
   // Only one ambulance car at a time
@@ -117,12 +133,14 @@ function spawnAmbulanceCar(sim) {
   });
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 // CAR PHYSICS
-// ═══════════════════════════════════════════════════════════════════════════
+// Calculates the distance to the nearest vehicle ahead in the same lane
 function fwdDist(car, cars) {
+  // After passing the waiting area, ignore queue spacing checks
   if (car.pi > 1) return Infinity; let m = Infinity;
   for (const c of cars) {
+    // Skip the same car and vehicles that already left the simulation
+    // Only compare vehicles in the same approach and same lane
     if (c === car || c.done || c.pi > 1 || c.ap !== car.ap || c.ln !== car.ln) continue;
     let ah = false;
     if (car.ap === "N") ah = c.y >= car.y - 2; if (car.ap === "S") ah = c.y <= car.y + 2;
@@ -130,15 +148,17 @@ function fwdDist(car, cars) {
     if (ah) { const d = Math.hypot(c.x - car.x, c.y - car.y); if (d > 1) m = Math.min(m, d); }
   } return m;
 }
-
+// Moves one vehicle along its path for the current animation frame
 function stepCar(car, dt, sim) {
   if (car.done) return;
+  // Calculate movement distance based on vehicle speed and frame time
   const step = ((car.speed || SPD) / 16.67) * dt;
   const ni = car.pi + 1;
   if (ni >= car.path.length) { car.done = true; return; }
   const tgt = car.path[ni];
   const dx = tgt.x - car.x, dy = tgt.y - car.y, d = Math.hypot(dx, dy);
   if (d > 0.5) car.ang = Math.atan2(dy, dx);
+  // Move the vehicle toward the target point without overshooting it
   const mv = (s) => { if (d <= s) { car.x = tgt.x; car.y = tgt.y; car.pi = ni; } else { car.x += (dx / d) * s; car.y += (dy / d) * s; } };
 
   // ── Ambulance: priority but NO overlapping ──
@@ -188,6 +208,7 @@ function stepCar(car, dt, sim) {
   if (tgt.w) {
     if (d <= 1) {
       car.x = tgt.x; car.y = tgt.y;
+      // Ambulance can move only when its lane is the active green lane
       const go = !sim.transitioning && car.ap === sim.activeLane;
       if (go) { car.waiting = false; car.pi = ni; } else car.waiting = true;
       return;
@@ -199,9 +220,9 @@ function stepCar(car, dt, sim) {
   } else { car.waiting = false; mv(step); }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
+
 // CANVAS DRAWING
-// ═══════════════════════════════════════════════════════════════════════════
+
 const ln = (ctx, x1, y1, x2, y2) => { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); };
 function rr(ctx, x, y, w, h, r) {
   ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
@@ -324,7 +345,7 @@ function drawRegularCar(ctx, car) {
   ctx.restore();
 }
 
-// ─── Ambulance vehicle (white body, flashing light bar, red cross) ───────────
+// ─── Ambulance vehicle ───────────
 function drawAmbulanceCar(ctx, car) {
   ctx.save(); ctx.translate(car.x, car.y); ctx.rotate(car.ang);
 
@@ -341,7 +362,6 @@ function drawAmbulanceCar(ctx, car) {
   ctx.fillStyle = "#f0f0ee";
   rr(ctx, -AH / 2, -AW / 2, AH, AW, 3); ctx.fill();
 
-  // Orange hi-vis stripe (lower quarter)
   ctx.fillStyle = "#e88000";
   ctx.fillRect(-AH / 2, AW / 2 - 4, AH, 3);
 
@@ -351,7 +371,6 @@ function drawAmbulanceCar(ctx, car) {
   ctx.fillStyle = flash ? "#1040ee" : "#ff1515";
   ctx.fillRect(AH / 2 - 8 + 5, -AW / 2, 5, AW / 2);
 
-  // Red cross — centered on body
   ctx.fillStyle = "#cc0000";
   ctx.fillRect(-4, -AW / 2 + 3, 8, 3.5);    // horizontal bar
   ctx.fillRect(-1.5, -AW / 2 + 1.5, 3, 6.5); // vertical bar
@@ -447,28 +466,6 @@ function drawEnvironment(ctx) {
     ctx.arc(x, y - 32, 18, 0, Math.PI * 2);
     ctx.fill();
   });
-
-  // Small sensors/cameras near signals
-  const cams = [
-    [430, 285], [570, 285],
-    [430, 725], [570, 725],
-    [285, 430], [725, 570]
-  ];
-
-  cams.forEach(([x, y]) => {
-    ctx.fillStyle = "#1b1f2a";
-    ctx.fillRect(x, y, 18, 9);
-
-    ctx.fillStyle = "#00d4aa";
-    ctx.fillRect(x + 13, y + 2, 3, 3);
-
-    ctx.strokeStyle = "#555";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(x + 9, y + 9);
-    ctx.lineTo(x + 9, y + 22);
-    ctx.stroke();
-  });
 }
 
 function render(ctx, sim) {
@@ -482,9 +479,7 @@ function render(ctx, sim) {
   drawActiveGlow(ctx, sim); drawAmbulanceWarning(ctx, sim);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 // UI HELPERS
-// ═══════════════════════════════════════════════════════════════════════════
 const C = {
   bg: "#080a10", surface: "#0c0e18", card: "#0e1020", border: "#1a1e2c",
   text: "#d0d5ec", muted: "#5a6080", dim: "#333750",
@@ -493,9 +488,10 @@ const C = {
   amber: "#ffaa00", amberBg: "#261400",
   yellow: "#ffcc00", blue: "#3a8fff", teal: "#00d4aa",
 };
+// Formats seconds into MM:SS format for the session timer
 const fmtTime = s => `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
 const barColor = pct => pct > 70 ? "#ff3a3a" : pct > 45 ? "#ffaa00" : pct > 20 ? "#f1c40f" : "#00e676";
-
+// Returns congestion bar color based on congestion percentage
 function DirBadge({ dir, sz = 22 }) {
   const col = DIR_CLR[dir];
   return (<div style={{ width: sz, height: sz, borderRadius: 4, background: `${col}1e`, border: `1px solid ${col}55`, display: "flex", alignItems: "center", justifyContent: "center", color: col, fontWeight: "bold", fontSize: sz * 0.55, fontFamily: "monospace", flexShrink: 0 }}>{dir}</div>);
@@ -536,7 +532,6 @@ function TopStrip({ ai, activeLane, sessionSecs, transitioning, navigate }) {
         <span style={{ color: C.text, fontSize: 11, fontWeight: 500, letterSpacing: "0.1em" }}>EVALANE SIMULATION</span>
         {ai.congested && <span style={{ fontSize: 9, padding: "2px 9px", borderRadius: 10, background: C.redBg, color: C.red, border: `1px solid ${C.red}35`, letterSpacing: "0.08em" }}>● CONGESTION DETECTED</span>}
         {ai.amb && <span style={{ fontSize: 9, padding: "2px 9px", borderRadius: 10, background: C.amberBg, color: C.amber, border: `1px solid ${C.amber}35`, letterSpacing: "0.08em" }}>🚨 AMBULANCE ACTIVE</span>}
-        {ai.peak && !ai.congested && !ai.amb && <span style={{ fontSize: 9, padding: "2px 9px", borderRadius: 10, background: "#141025", color: "#8a70ff", border: "1px solid #8a70ff35", letterSpacing: "0.08em" }}>● PEAK HOURS</span>}
         <span style={{ flex: 1 }} />
         <span
           style={{
@@ -565,7 +560,7 @@ function TopStrip({ ai, activeLane, sessionSecs, transitioning, navigate }) {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0 }}>
           <span style={{ color: "#fff", fontSize: 9, letterSpacing: "0.1em", whiteSpace: "nowrap" }}>RECOMMENDED LANE</span>
-          <DirBadge dir={ai.lane} sz={26} />
+          <DirBadge dir={ai.lane} sz={26} />// Display AI recommended lane
           <span style={{ color: C.text, fontSize: 14, fontWeight: 500 }}>{ai.name}</span>
           <span style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 8px", borderRadius: 10, background: "#0a201c", border: "1px solid #00d4aa35", color: C.teal, fontSize: 9, letterSpacing: "0.08em", whiteSpace: "nowrap" }}>● SUGGESTED</span>
         </div>
@@ -574,6 +569,7 @@ function TopStrip({ ai, activeLane, sessionSecs, transitioning, navigate }) {
 
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
           <span style={{ color: "#fff", fontSize: 9, letterSpacing: "0.1em", whiteSpace: "nowrap" }}>SUGGESTED DURATION</span>
+          // Display AI suggested green-light duration
           <span style={{ color: C.yellow, fontSize: 26, fontFamily: "monospace", fontWeight: "bold", lineHeight: 1 }}>{ai.dur}</span>
           <span style={{ color: "#fff", fontSize: 9 }}>seconds</span>
         </div>
@@ -588,7 +584,7 @@ function TopStrip({ ai, activeLane, sessionSecs, transitioning, navigate }) {
     </div>
   );
 }
-
+// Card component for one lane direction in the lane control panel
 function LaneCard({ dir, ui, ai, onOpen, customTime, editing, onEditStart, onEditEnd, onSetTime }) {
   const isActive = ui.activeLane === dir && !ui.transitioning;
   const isYellow = ui.activeLane === dir && ui.transitioning;
@@ -719,16 +715,14 @@ function LeftPanel({ ui, ai, onOpen, customTimes, onCustomTime }) {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// MAIN COMPONENT
-// ═══════════════════════════════════════════════════════════════════════════
+// Main simulation page component that controls the whole traffic simulation
 export default function EvalaneSimPage() {
   const navigate = useNavigate();
   const cvRef = useRef(null);
   const simRef = useRef(null);
   const rafRef = useRef(null);
   const pausedRef = useRef(true);
-
+  // UI state displayed on the screen, synced from the simulation object
   const [ui, setUI] = useState({
     activeLane: "N", greenTimer: 8000, greenDuration: 8, transitioning: false,
     laneCounts: { N: 0, S: 0, E: 0, W: 0 }, cong: { N: 0, S: 0, E: 0, W: 0 }, gf: { N: 0, S: 0, E: 0, W: 0 }, ambulance: null
@@ -736,22 +730,28 @@ export default function EvalaneSimPage() {
   const [, setTotalDecisions] = useState(0);
   const [, setCorrectDecisions] = useState(0);
   const [sessionSecs, setSessionSecs] = useState(SESSION_LIMIT);
+
   const [started, setStarted] = useState(false);
   const [finished, setFinished] = useState(false);
   const [paused, setPaused] = useState(true);
+
   const [customTimes, setCustomTimes] = useState({ N: null, S: null, E: null, W: null });
+  // Stores AI prediction received from backend model
   const [backendAI, setBackendAI] = useState(null);
+
   const [previousScore, setPreviousScore] = useState(null);
   const [score, setScore] = useState(0);
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(() => {
     return localStorage.getItem("evalaneTutorialDone") ? null : 0;
   });
-
+  // Local fallback AI recommendation calculated from current lane counts
   const localAI = useMemo(() => computeAI(ui.laneCounts, ui.ambulance), [ui.laneCounts, ui.ambulance]);
+  // Use backend AI when available, otherwise fallback to local rule-based AI
   const ai = backendAI || localAI;
 
   // Canvas simulation loop
+  // Starts and manages the main canvas simulation loop
   useEffect(() => {
     const canvas = cvRef.current;
     const ctx = canvas.getContext("2d");
@@ -778,12 +778,14 @@ export default function EvalaneSimPage() {
 
       // ── Ambulance event ──────────────────────────────────────────────────
       sim.ambulanceNext -= dt;
+      // Create a new ambulance event with a random direction
       if (sim.ambulanceNext <= 0 && !sim.ambulance) {
         const lns = ["N", "S", "E", "W"];
         const lane = lns[Math.floor(Math.random() * 4)];
         sim.ambulance = { lane, timer: 28000, spawned: false };
         sim.ambulanceNext = 90000 + Math.random() * 150000;
       }
+      // Handle active ambulance event
       if (sim.ambulance) {
         // Spawn the ambulance vehicle exactly once per event
         if (!sim.ambulance.spawned) {
@@ -796,7 +798,9 @@ export default function EvalaneSimPage() {
 
       // ── Green timer ──────────────────────────────────────────────────────
       if (!sim.transitioning) {
+        // Reduce active green lane timer
         sim.greenTimer -= dt;
+        // Start yellow transition when green time ends or user manually opens another lane
         if (sim.greenTimer <= 0 || sim.manualOverride !== null) {
           sim.transitioning = true; sim.transitionTimer = 1600;
         }
@@ -804,10 +808,13 @@ export default function EvalaneSimPage() {
         sim.transitionTimer -= dt;
         if (sim.transitionTimer <= 0) {
           sim.transitioning = false;
+          // Automatic lane rotation order
           const order = ["N", "S", "E", "W"];
           const currentIdx = order.indexOf(sim.activeLane);
           const autoNext = order[(currentIdx + 1) % 4];
+          // Use manual user choice if available, otherwise use automatic next lane
           const next = sim.manualOverride || autoNext;
+          // Apply custom green duration or default to 30 seconds
           const dur = sim.customDurations[next] || 30;
           sim.activeLane = next; sim.manualOverride = null;
           sim.greenTimer = dur * 1000; sim.greenDuration = dur;
@@ -820,13 +827,14 @@ export default function EvalaneSimPage() {
       // ── Spawn regular cars ───────────────────────────────────────────────
       for (const d of ["N", "S", "E", "W"]) {
         sim.spawnT[d] -= dt;
+        // Different spawn intervals create asymmetric traffic flow
         const spawnRates = {
           N: [1600, 2800],
           S: [2600, 4200],
           E: [900, 1800],
           W: [1100, 2200]
         };
-
+        // Spawn a new vehicle in a random lane when timer reaches zero
         if (sim.spawnT[d] <= 0) {
           doSpawn(sim, d, Math.floor(Math.random() * 3));
 
@@ -874,14 +882,15 @@ export default function EvalaneSimPage() {
     }, 150);
     return () => clearInterval(id);
   }, [started]);
-
+  // Saves completed simulation session results to Firestore
   const saveSession = useCallback(async (finalScore, finalCorrect, finalTotal) => {
     try {
       const user = auth.currentUser;
       if (!user) return;
 
-
+      // Create a unique Firestore document for this session
       const sessionRef = doc(db, "users", user.uid, "sessions", Date.now().toString());
+      // Store final session performance data
       await setDoc(sessionRef, {
         score: finalScore,
         correctDecisions: finalCorrect,
@@ -907,15 +916,14 @@ export default function EvalaneSimPage() {
       try {
         const user = auth.currentUser;
         if (!user) return;
-
+        // Query the latest saved session for the current user
         const q = query(
           collection(db, "users", user.uid, "sessions"),
           orderBy("createdAt", "desc"),
           limit(1)
         );
-
+        // If a previous session exists, display its score
         const snap = await getDocs(q);
-
         if (!snap.empty) {
           setPreviousScore(snap.docs[0].data().score);
         }
@@ -931,6 +939,7 @@ export default function EvalaneSimPage() {
     const id = setInterval(() => {
       if (!pausedRef.current) {
         setSessionSecs(s => {
+          // End the session when countdown reaches zero
           if (s <= 1) {
             pausedRef.current = true;
 
@@ -943,7 +952,7 @@ export default function EvalaneSimPage() {
             setTotalDecisions(finalTotal => {
               setCorrectDecisions(finalCorrect => {
                 const finalScore = score;
-                saveSession(finalScore, finalScore, finalCorrect, finalTotal);
+                saveSession(finalScore, finalCorrect, finalTotal);
                 setPreviousScore(finalScore);
                 return finalCorrect;
               });
@@ -964,6 +973,7 @@ export default function EvalaneSimPage() {
   // Backend AI prediction - update every 5 seconds
   useEffect(() => {
     if (!started) return;
+    // Sends current traffic data to backend model and receives recommendation
     const fetchAI = async () => {
       try {
         const sim = simRef.current;
@@ -989,12 +999,13 @@ export default function EvalaneSimPage() {
           })
         });
         const data = await response.json();
+        // Store backend AI recommendation in React state
         setBackendAI({
           lane: data.optimal_action.replace("GREEN_", ""),
           name: NAMES[data.optimal_action.replace("GREEN_", "")],
           dur: data.signal_duration,
           cong: local.cong, avg: local.avg,
-          congested: local.congested, peak: local.peak,
+          congested: local.congested,
           amb: !!sim.ambulance,
           level: data.congestion_level,
           confidence: data.congestion_confidence,
@@ -1010,8 +1021,9 @@ export default function EvalaneSimPage() {
     const sim = simRef.current; if (!sim) return;
     if (sim.activeLane === lane && !sim.transitioning) return;
     const aiPick = backendAI || computeAI(sim.laneCounts, sim.ambulance);
-
+    // Count this as one user decision
     setTotalDecisions(t => t + 1);
+    // Reward the user if their decision matches the AI recommendation
     if (lane === aiPick.lane) {
       setCorrectDecisions(c => c + 1);
       setScore(s => Math.min(100, s + 10));
