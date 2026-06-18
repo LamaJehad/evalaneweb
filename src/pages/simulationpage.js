@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { doc, setDoc, updateDoc, getDoc, collection, query, orderBy, limit, getDocs } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 
 
 // GEOMETRY
@@ -745,11 +746,14 @@ export default function EvalaneSimPage() {
  const [tutorialStep, setTutorialStep] = useState(null);
 
 useEffect(() => {
-  const user = auth.currentUser;
-  if (!user) return;
+  const unsub = onAuthStateChanged(auth, (user) => {
+    if (!user) return;
 
-  const key = `evalaneTutorialDone_${user.uid}`;
-  setTutorialStep(localStorage.getItem(key) ? null : 0);
+    const key = `evalaneTutorialDone_${user.uid}`;
+    setTutorialStep(localStorage.getItem(key) ? null : 0);
+  });
+
+  return () => unsub();
 }, []);
   // Local fallback AI recommendation calculated from current lane counts
   const localAI = useMemo(() => computeAI(ui.laneCounts, ui.ambulance), [ui.laneCounts, ui.ambulance]);
