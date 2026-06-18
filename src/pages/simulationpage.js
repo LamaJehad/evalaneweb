@@ -742,9 +742,15 @@ export default function EvalaneSimPage() {
   const [previousScore, setPreviousScore] = useState(null);
   const [score, setScore] = useState(0);
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
-  const [tutorialStep, setTutorialStep] = useState(() => {
-    return localStorage.getItem("evalaneTutorialDone") ? null : 0;
-  });
+ const [tutorialStep, setTutorialStep] = useState(null);
+
+useEffect(() => {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const key = `evalaneTutorialDone_${user.uid}`;
+  setTutorialStep(localStorage.getItem(key) ? null : 0);
+}, []);
   // Local fallback AI recommendation calculated from current lane counts
   const localAI = useMemo(() => computeAI(ui.laneCounts, ui.ambulance), [ui.laneCounts, ui.ambulance]);
   // Use backend AI when available, otherwise fallback to local rule-based AI
@@ -1106,7 +1112,9 @@ export default function EvalaneSimPage() {
         score >= 40 ? { label: "Satisfactory", color: "#ffcc00" } :
           { label: "Needs Improvement", color: "#ff4444" };
   const finishTutorial = () => {
-    localStorage.setItem("evalaneTutorialDone", "true");
+    const user = auth.currentUser;
+const key = user ? `evalaneTutorialDone_${user.uid}` : "evalaneTutorialDone";
+localStorage.setItem(key, "true");
     setTutorialStep(null);
   };
   const tutorialSteps = [
